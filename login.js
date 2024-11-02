@@ -1,40 +1,14 @@
-const express = require('express');
-const session = require('express-session');
-const mysql = require('mysql2');
-const bodyParser = require('body-parser');
-const app = express();
+// Import kết nối cơ sở dữ liệu
+const conn = require('./connectDB');
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({
-    secret: 'yourSecretKey',
-    resave: false,
-    saveUninitialized: true
-}));
+// Hàm xử lý đăng nhập
+const loginHandler = (req, res) => {
+  const { username, password } = req.body;
 
-// Kết nối với cơ sở dữ liệu
-const conn = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'keeppley-shop'
-});
+  if (!username || !password) {
+    return res.redirect('/login_again_en');
+  }
 
-conn.connect((err) => {
-    if (err) {
-        console.error("Connection Failed : " + err.stack);
-        return;
-    }
-    console.log("Connected to database.");
-});
-
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.redirect('/login_again_en');
-    }
-
-    
   if (username === 'admin' && password === '1234') {
     req.session.username = 'admin.com';
     return res.redirect('/Admin/public/index');
@@ -52,16 +26,27 @@ app.post('/login', (req, res) => {
           req.session.error0 = 'Invalid username or password';
           return res.redirect('/login_again_en');
         } else {
-          req.session.userID = results[0].userID;
+          // Lưu thông tin user vào session
+          req.session.userLogin = {
+            userID: results[0].userID,
+            userName: results[0].userName,
+            email: results[0].email,
+            image: results[0].image,
+            loginpassword: results[0].loginpassword,
+            birthday: results[0].birthday,
+            bio: results[0].bio,
+            country: results[0].country,
+            phone: results[0].phone
+        };
+        
           delete req.session.error0;
-          return res.redirect('/product');
+          console.log(req.session.userID)
+          return res.redirect('/');
         }
       }
     );
   }
-});
+};
 
-// Khởi động server
-app.listen(3000, () => {
-    console.log("Server is running on http://localhost:3000");
-});
+// Export hàm để sử dụng ở file khác
+module.exports = loginHandler;

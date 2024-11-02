@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session'); // Import express-session
-const mysql = require('mysql');
+
 
 // Khởi tạo ứng dụng Express
 const app = express();
@@ -18,6 +18,7 @@ app.use((req, res, next) => {
   app.set('views', path.join(__dirname, viewsDir));
   next();
 });
+
 
 // Lấy thư mục ảnh
 app.use(express.static(path.join(__dirname, 'public')));
@@ -55,338 +56,334 @@ app.use(session({
   saveUninitialized: true
 }));
 
-// Kết nối với cơ sở dữ liệu
-const conn = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'keeppley-shop'
-});
+// --------------------------------------------------------------------------- //
 
-conn.connect((err) => {
-  if (err) {
-    console.error("Connection Failed : " + err.stack);
-    return;
-  }
-  console.log("Connected to database.");
-});
+const loginHandler = require('./login'); // Import loginHandler từ login.js
 
-// app.post('/login', (req, res) => {
-//   console.log(req.body); // Kiểm tra xem dữ liệu có được gửi hay không
-//   const { username, password } = req.body;
-//   return res.redirect('/product');
+// Sử dụng loginHandler cho route /login
+app.post('/login', loginHandler);
 
-//   if (!username || !password) {
-//     return res.redirect('/login_again_en');
-//   }
-//   // Phần còn lại của mã ...
-// });
+const userRoutes = require('./user'); // Nhập file user.js
+// Sử dụng các route từ user.js
+app.use(userRoutes);
 
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
+// Middleware auth_user, duy trì đăng nhập
+function auth_user(req, res, next) {
+  res.locals.userLogin = req.session.userLogin || null; // Gắn `userLogin` vào `res.locals`
+  res.locals.success_message = req.session.success_message || null; // Gắn `userLogin` vào `res.locals`
+  next();
+}
 
-  if (!username || !password) {
-    return res.redirect('/login_again_en');
-  }
-
-  if (username === 'admin' && password === '1234') {
-    req.session.username = 'admin.com';
-    return res.redirect('/Admin/index');
-  } else {
-    conn.query(
-      'SELECT * FROM `user` WHERE username = ? AND loginpassword = ?',
-      [username, password],
-      (err, results) => {
-        if (err) {
-          console.error("Query Error: " + err);
-          return res.redirect('/login_again_en');
-        }
-
-        if (results.length === 0) {
-          req.session.error0 = 'Invalid username or password';
-          return res.redirect('/login_again_en');
-        } else {
-          req.session.userID = results[0].userID;
-          delete req.session.error0;
-          return res.redirect('/product');
-        }
-      }
-    );
-  }
-});
-
-
-// Định nghĩa route cho trang chủ
-app.get('/', (req, res) => {
+// Định nghĩa route với middleware auth_user
+app.get('/', auth_user, (req, res) => {
   const website = 'index.ejs'; // Lấy tên file từ URL
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
+  console.log(userLogin)
   res.render('index', { website, userLogin });
 });
 
-app.get('/index', (req, res) => {
+app.get('/index', auth_user, (req, res) => {
   const website = 'index.ejs'; // Lấy tên file từ URL
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
+  console.log(userLogin)
   res.render('index', { website, userLogin });
 });
 
-app.get('/head', (req, res) => {
+app.get('/head', auth_user, (req, res) => {
   res.render('head');
 });
 
-app.get('/ChooseLogin_en', (req, res) => {
+app.get('/ChooseLogin_en', auth_user, (req, res) => {
   const website = 'ChooseLogin_en.ejs'; // Lấy tên file từ URL
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('ChooseLogin_en', { website, userLogin });
 });
 
 
-app.get('/404', (req, res) => {
+app.get('/404', auth_user, (req, res) => {
   const website = '404.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('404', { website, userLogin });
 });
 
-app.get('/Category_Product', (req, res) => {
+app.get('/Category_Product', auth_user, (req, res) => {
   const website = 'Category_Product.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Category_Product', { website, userLogin });
 });
 
-app.get('/Connections', (req, res) => {
+app.get('/Connections', auth_user, (req, res) => {
   const website = 'Connections.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Connections', { website, userLogin });
 });
 
-app.get('/doraemon', (req, res) => {
+app.get('/doraemon', auth_user, (req, res) => {
   const website = 'doraemon.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('doraemon', { website, userLogin });
 });
 
-app.get('/footer', (req, res) => {
+app.get('/footer', auth_user, (req, res) => {
   const website = 'footer.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('footer', { website, userLogin });
 });
 
-app.get('/footer_dark', (req, res) => {
+app.get('/footer_dark', auth_user, (req, res) => {
   const website = 'footer_dark.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('footer_dark', { website, userLogin });
 });
 
-app.get('/form_login_en', (req, res) => {
+app.get('/form_login_en', auth_user, (req, res) => {
   const website = 'form_login_en.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('form_login_en', { website, userLogin });
 });
 
-app.get('/General', (req, res) => {
+// --------------------------------------------------------------------------- //
+ 
+const { upload, changeGeneral } = require('./changeGeneral');
+
+// Sử dụng middleware để xử lý yêu cầu cập nhật thông tin người dùng
+app.post('/changeGeneral', upload.single('profileImage'), changeGeneral);
+
+
+app.get('/General', auth_user, (req, res) => {
   const website = 'General.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('General', { website, userLogin });
 });
 
-app.get('/Image', (req, res) => {
-  const website = '/Image.ejs';
-  const userLogin = req.session.userID || undefined;
-  res.render('/Image', { website, userLogin });
+app.get('/Avatar', auth_user, (req, res) => {
+  const website = '/Avatar.ejs';
+  const userLogin = res.locals.userLogin
+  res.render('Avatar', { website, userLogin });
 });
 
-app.get('/Information', (req, res) => {
+// const { upload, changeAvatar } = require('changeAvatar.js');
+
+// // Định tuyến đến trang avatar và cập nhật ảnh
+// app.post('/changeAvatar', upload.single('profileImage'), changeAvatar);
+
+app.get('/Information', auth_user, (req, res) => {
   const website = 'Information.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Information', { website, userLogin });
 });
 
-app.get('/Keeppley_Products', (req, res) => {
+app.get('/Keeppley_Products', auth_user, (req, res) => {
   const website = 'Keeppley_Products.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Keeppley_Products', { website, userLogin });
 });
 
-app.get('/Languages', (req, res) => {
+app.get('/Languages', auth_user, (req, res) => {
   const website = 'Languages.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Languages', { website, userLogin });
 });
 
-app.get('/LEGO_Products', (req, res) => {
+app.get('/LEGO_Products', auth_user, (req, res) => {
   const website = 'LEGO_Products.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('LEGO_Products', { website, userLogin });
 });
 
-app.get('/Notification', (req, res) => {
+app.get('/Password', auth_user, (req, res) => {
+  const website = 'Password.ejs';
+  const userLogin = res.locals.userLogin
+  res.render('Password', { website, userLogin });
+});
+
+app.get('/Notification', auth_user, (req, res) => {
   const website = 'Notification.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Notification', { website, userLogin });
 });
 
-app.get('/product', (req, res) => {
+app.get('/product', auth_user, (req, res) => {
   const website = 'product.ejs';
-  const userLogin = req.session.userID || undefined;
-  res.render('product', { website, userLogin });
+  const userLogin = res.locals.userLogin
+  console.log(userLogin)
+  res.render('product', { website, userLogin });  
 });
 
-app.get('/product_detail', (req, res) => {
+app.get('/product_detail', auth_user, (req, res) => {
   const website = 'product_detail.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('product_detail', { website, userLogin });
 });
 
-app.get('/Qman_Products', (req, res) => {
+app.get('/Qman_Products', auth_user, (req, res) => {
   const website = 'Qman_Products.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Qman_Products', { website, userLogin });
 });
 
-app.get('/sario', (req, res) => {
+app.get('/sario', auth_user, (req, res) => {
   const website = 'sario.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('sario', { website, userLogin });
 });
 
-app.get('/Sidebar', (req, res) => {
+app.get('/Sidebar', auth_user, (req, res) => {
   const website = 'Sidebar.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Sidebar', { website, userLogin });
 });
 
-app.get('/SocialLinks', (req, res) => {
+app.get('/SocialLinks', auth_user, (req, res) => {
   const website = 'SocialLinks.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('SocialLinks', { website, userLogin });
 });
 
-app.get('/Admin/index', (req, res) => {
+app.get('/login_again_en', auth_user, (req, res) => {
+  const website = 'login_again_en.ejs';
+  const userLogin = res.locals.userLogin
+  res.render('login_again_en', { website, userLogin });
+});
+
+app.get('/logout', (req, res) => {
+  // Hủy session
+  req.session.destroy((err) => {
+      if (err) {
+          console.error('Không thể hủy session:', err);
+          return res.status(500).send('Có lỗi xảy ra khi logout.');
+      }
+
+      // Xóa cookie của session (tùy chọn)
+      res.clearCookie('connect.sid'); // 'connect.sid' là tên mặc định của cookie session trong express-session
+
+      // Redirect đến trang đăng nhập hoặc trang chủ sau khi logout
+      res.redirect('/');
+  });
+});
+
+
+
+// ----------------------- Admin -------------------------------- //
+app.get('/Admin/index', auth_user, (req, res) => {
   const website = 'index.ejs';
-  const userLogin = req.session.userID || undefined;
+  const userLogin = res.locals.userLogin
   res.render('Admin/index', { website, userLogin });
 });
 
-// app.get('/Category_Product', (req, res) => {
+
+
+
+
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 
-// app.get('/Category_Product', (req, res) => {
+// app.get('/Category_Product', auth_user, (req, res) => {
 //   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
-//   res.render('Category_Product', { website, userLogin });
-// });
-
-// app.get('/Category_Product', (req, res) => {
-//   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
-//   res.render('Category_Product', { website, userLogin });
-// });
-
-// app.get('/Category_Product', (req, res) => {
-//   const website = 'Category_Product.ejs';
-//   const userLogin = req.session.userID || undefined;
+//   const userLogin = res.locals.userLogin
 //   res.render('Category_Product', { website, userLogin });
 // });
 // Cấu hình cổng để server lắng nghe
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log("Server is running on http://localhost:3000");
+  console.log("Server is running on http://localhost:3001");
 });
